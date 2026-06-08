@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "566534327286",
+    "project_id": "hip-hop-beat",
+    "storage_bucket": "hip-hop-beat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:566534327286:android:56336ccb5e3f2caa2f55d7",
+        "android_client_info": {
+          "package_name": "com.andromo.dev127586.app1066667"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1BPPY8mrgCSYEIGbISIHUdKIrEjSAwaw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

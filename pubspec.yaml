@@ -1,0 +1,55 @@
+name: afro_beat_trap
+description: Afro Beat Trap Instrumental - Flutter rebuild
+publish_to: 'none'
+version: 1.0.1+2
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  just_audio: ^0.9.40
+  audio_session: ^0.1.25
+  record: ^6.1.1
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.2
+  permission_handler: ^11.3.1
+  google_mobile_ads: ^5.2.0
+  firebase_core: ^3.6.0
+  firebase_analytics: ^11.3.3
+  http: ^1.2.2
+  file_picker: ^8.1.2
+  open_filex: ^4.5.0
+  url_launcher: ^6.3.0
+  in_app_purchase: ^3.2.0
+
+dependency_overrides:
+  record_linux: ^1.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/app_icon.png
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: assets/app_icon.png
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.webp
+    - assets/app_icon.png
+    - assets/afro_radio_app_icon.png
+    - assets/background-afro.png
+    - assets/hiphop.bk.webp
+    - assets/background-hiphop.webp
+    - assets/stations/

@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../services/beat_audio_service.dart';
 import '../services/saved_recordings_service.dart';
+import '../services/share_recording_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 import '../widgets/info_modal.dart';
@@ -149,6 +150,20 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
     }
   }
 
+  Future<void> _share(SavedRecording recording) async {
+    try {
+      await ShareRecordingService.shareRecording(recording);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not share recording'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -229,6 +244,12 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        icon: const Icon(Icons.share_outlined,
+                            color: AppColors.accentOrange),
+                        tooltip: 'Share',
+                        onPressed: () => _share(r),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit_outlined,
                             color: Colors.white70),

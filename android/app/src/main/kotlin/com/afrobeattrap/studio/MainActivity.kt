@@ -1,4 +1,4 @@
-package com.andromo.dev127586.app1066667
+package com.afrobeattrap.studio
 
 import io.flutter.embedding.android.FlutterActivity
 

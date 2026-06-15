@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/beat.dart';
+import '../services/rating_service.dart';
 import '../services/recording_session.dart';
 import '../services/tab_navigation_service.dart';
 import '../theme/app_theme.dart';
@@ -27,7 +28,10 @@ class RecordingPanel extends StatelessWidget {
             !session.isStopping &&
             session.recordedDuration.isNotEmpty;
 
+        final maxPanelHeight = MediaQuery.sizeOf(context).height * 0.62;
+
         return Container(
+          constraints: BoxConstraints(maxHeight: maxPanelHeight),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -43,81 +47,86 @@ class RecordingPanel extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Recording Details',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (isRecording) ...[
-                          const SizedBox(height: 10),
-                          Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Colors.black26,
-                                    blurRadius: 6,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const _PulsingDot(),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'REC ${session.formatTime(session.recordingTime)}  ·  '
-                                    '${session.formatTime(session.remainingTime)} left',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 16, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Recording Details',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(
-                            value: session.recordingTime /
-                                RecordingSession.maxRecordingTime,
-                            backgroundColor: Colors.white24,
-                            color: AppColors.danger,
-                            minHeight: 4,
-                          ),
+                          if (isRecording) ...[
+                            const SizedBox(height: 10),
+                            Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 6,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const _PulsingDot(),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'REC ${session.formatTime(session.recordingTime)}  ·  '
+                                      '${session.formatTime(session.remainingTime)} left',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            LinearProgressIndicator(
+                              value: session.recordingTime /
+                                  RecordingSession.maxRecordingTime,
+                              backgroundColor: Colors.white24,
+                              color: AppColors.danger,
+                              minHeight: 4,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  if (canClose) ...[
-                    const SizedBox(width: 8),
-                    _CloseButton(onPressed: session.closeSelectedBeat),
+                    if (canClose)
+                      _CloseButton(onPressed: session.closeSelectedBeat),
                   ],
-                ],
+                ),
               ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
               if (isRecording && onStopRecording != null) ...[
                 const SizedBox(height: 16),
                 _ActionButton(
@@ -250,12 +259,21 @@ class RecordingPanel extends StatelessWidget {
                     try {
                       await session.saveRecording();
                       if (context.mounted) {
+                        final count = await context
+                            .read<RatingService>()
+                            .recordSavedRecording();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Recording saved'),
                             backgroundColor: AppColors.success,
                           ),
                         );
+                        if (count >= 2) {
+                          await RatingPopup.showIfNeeded(
+                            context,
+                            trigger: RatingPromptTrigger.recordingSaved,
+                          );
+                        }
                       }
                     } catch (_) {
                       if (context.mounted) {
@@ -308,10 +326,17 @@ class RecordingPanel extends StatelessWidget {
                   onTap: () async {
                     await session.stopPlayRecording();
                     if (context.mounted) {
-                      await RatingPopup.showIfNeeded(context);
+                      await RatingPopup.showIfNeeded(
+                        context,
+                        trigger: RatingPromptTrigger.recordingPlayback,
+                      );
                     }
                   },
                 ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         );

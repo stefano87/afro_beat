@@ -1,10 +1,12 @@
-# Afro Beat Trap Instrumental — Setup
+# Afro Beat Trap Studio 2026 — Setup
 
-Flutter rebuild of [Afro Beat Trap Instrumental](https://play.google.com/store/apps/details?id=com.andromo.dev127586.app1066667), cloned from `flutter_app` (Hip Hop).
+New Play Store listing: `com.afrobeattrap.studio`.
 
-## Package ID (Play Store update)
+Legacy Andromo app: [Afro Beat Trap Instrumental](https://play.google.com/store/apps/details?id=com.andromo.dev127586.app1066667) — add a link to the new app in its store description.
 
-`com.andromo.dev127586.app1066667` — same listing as the existing Andromo app.
+## Package ID
+
+`com.afrobeattrap.studio`
 
 ## What you need to provide
 
@@ -27,7 +29,7 @@ Replace under `assets/`:
 - Run: `flutter pub run flutter_launcher_icons`
 
 ### 5. Firebase
-Add Android app `com.andromo.dev127586.app1066667` to your Firebase project → download new `google-services.json` → `android/app/`.
+Add Android app `com.afrobeattrap.studio` to your Firebase project → download new `google-services.json` → `android/app/`.
 
 ### 6. AdMob
 Create dedicated ad units for this app (do not reuse Hip Hop units in production). Update `AppConfig.admob*` in `app_config.dart` + `AndroidManifest.xml`.

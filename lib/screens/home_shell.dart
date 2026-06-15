@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
@@ -7,8 +9,10 @@ import '../services/admob_service.dart';
 import '../services/beat_audio_service.dart';
 import '../services/purchase_service.dart';
 import '../services/recording_session.dart';
+import '../services/rating_service.dart';
 import '../services/tab_navigation_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/info_modal.dart';
 import 'beat_list_screen.dart';
 import 'community_screen.dart';
 import 'favorites_screen.dart';
@@ -25,16 +29,27 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   PurchaseService? _purchases;
+  Timer? _ratingTimer;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
 
       final adMob = context.read<AdMobService>();
       final beatAudio = context.read<BeatAudioService>();
       final session = context.read<RecordingSession>();
+      final rating = context.read<RatingService>();
+
+      await rating.ensureFirstLaunchRecorded();
+      _ratingTimer = Timer(const Duration(minutes: 5), () async {
+        if (!mounted) return;
+        await RatingPopup.showIfNeeded(
+          context,
+          trigger: RatingPromptTrigger.timeInApp,
+        );
+      });
 
       adMob.bindPeriodicInterstitialBlockGate(
         () =>
@@ -70,6 +85,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    _ratingTimer?.cancel();
     _purchases?.removeListener(_syncInterstitialAds);
     context.read<AdMobService>().stopPeriodicInterstitials();
     super.dispose();

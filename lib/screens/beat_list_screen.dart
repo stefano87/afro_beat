@@ -40,6 +40,13 @@ class _BeatListScreenState extends State<BeatListScreen> {
     return [...premium, ...generateBeats()];
   }
 
+  double _listBottomPadding(RecordingSession session, Beat? selected) {
+    if (selected == null) return 100;
+    if (session.hasRecording && session.isRecordingDownloaded) return 380;
+    if (session.isAnyBeatRecording) return 260;
+    return 300;
+  }
+
   void _syncBeatStates(List<Beat> beats) {
     final audio = context.read<BeatAudioService>();
     final session = context.read<RecordingSession>();
@@ -135,7 +142,7 @@ class _BeatListScreenState extends State<BeatListScreen> {
                 5,
                 16,
                 5,
-                selected != null ? 320 : 100,
+                _listBottomPadding(session, selected),
               ),
               children: [
                 if (kEnablePremiumStore && purchases != null) ...[

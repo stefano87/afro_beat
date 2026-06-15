@@ -1,10 +1,10 @@
-/// Central branding & content config for Afro Beat Trap Instrumental.
+/// Central branding & content config for Afro Beat Trap Studio 2026.
 /// Update CDN paths, radio stations, and store IDs when ready.
 class AppConfig {
   AppConfig._();
 
   // ── Identity ──────────────────────────────────────────────────────────────
-  static const appTitle = 'Afro Beat Trap Instrumental';
+  static const appTitle = 'Afro Beat Trap Studio 2026';
   static const beatTabTitle = 'Afro Beats';
   static const beatTabSubtitle = 'Afro Beat & Afro Trap instrumentals';
   static const radioTabTitle = 'Afro Radio';
@@ -20,10 +20,17 @@ class AppConfig {
   static const afroRadioAppIconAsset = 'assets/afro_radio_app_icon.png';
   static const favoritesSubtitle = 'Afro Beat';
 
-  /// Same package as the existing Play Store listing (Andromo → Flutter rebuild).
-  static const androidPackageId = 'com.andromo.dev127586.app1066667';
+  /// New Play Store listing (Flutter rebuild).
+  static const androidPackageId = 'com.afrobeattrap.studio';
   static const playStoreMarketUrl =
-      'market://details?id=com.andromo.dev127586.app1066667';
+      'market://details?id=com.afrobeattrap.studio';
+  static const playStoreWebUrl =
+      'https://play.google.com/store/apps/details?id=com.afrobeattrap.studio';
+
+  /// Legacy Andromo listing — link from old app description only.
+  static const legacyAndroidPackageId = 'com.andromo.dev127586.app1066667';
+  static const legacyPlayStoreWebUrl =
+      'https://play.google.com/store/apps/details?id=com.andromo.dev127586.app1066667';
 
   // ── Assets (replace under assets/ when you have afro artwork) ───────────
   static const logoAsset = 'assets/app_icon.png';
@@ -53,8 +60,8 @@ class AppConfig {
   static const lastRatingPromptKey = 'afro_last_rating_prompt';
 
   // ── AdMob (TODO: create dedicated ad units for this app on AdMob) ─────────
-  static const admobAppId = 'ca-app-pub-5162875721816233~7320072617';
-  static const admobBannerUnitId = 'ca-app-pub-5162875721816233/4852911129';
+  static const admobAppId = 'ca-app-pub-5162875721816233~4035290375';
+  static const admobBannerUnitId = 'ca-app-pub-5162875721816233/5947137845';
   static const admobInterstitialUnitId =
-      'ca-app-pub-5162875721816233/9130233335';
+      'ca-app-pub-5162875721816233/9997726787';
 }

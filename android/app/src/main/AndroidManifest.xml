@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <application
-        android:label="Afro Beat Trap Instrumental"
+        android:label="Afro Beat Trap Studio 2026"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
@@ -21,7 +21,7 @@
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-5162875721816233~7320072617" />
+            android:value="ca-app-pub-5162875721816233~4035290375" />
 
         <activity
             android:name=".MainActivity"

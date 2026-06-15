@@ -150,84 +150,173 @@ class _FeatureCard extends StatelessWidget {
 }
 
 class RatingPopup extends StatelessWidget {
-  const RatingPopup({super.key});
-
-  static Future<void> showIfNeeded(BuildContext context) async {
+  static Future<void> showIfNeeded(
+    BuildContext context, {
+    RatingPromptTrigger trigger = RatingPromptTrigger.recordingPlayback,
+  }) async {
     final ratingService = context.read<RatingService>();
-    if (await ratingService.shouldShowRatingPrompt()) {
-      if (context.mounted) {
-        await showDialog(
-          context: context,
-          barrierDismissible: true,
-          builder: (_) => const RatingPopup(),
-        );
-      }
+    if (!await ratingService.shouldShowForTrigger(trigger)) return;
+
+    if (context.mounted) {
+      await showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) => RatingPopup(
+          onDismiss: () => ratingService.dismissRating(),
+        ),
+      );
     }
   }
 
   Future<void> _rateNow(BuildContext context) async {
     final ratingService = context.read<RatingService>();
     await ratingService.rateApp();
-    final uri = Uri.parse(
-      AppConfig.playStoreMarketUrl,
-    );
+    final uri = Uri.parse(AppConfig.playStoreMarketUrl);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
+    } else {
+      final webUri = Uri.parse(AppConfig.playStoreWebUrl);
+      if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
     }
     if (context.mounted) Navigator.of(context).pop();
   }
 
+  final Future<void> Function() onDismiss;
+
+  const RatingPopup({super.key, required this.onDismiss});
+
   Future<void> _dismiss(BuildContext context) async {
-    await context.read<RatingService>().dismissRating();
+    await onDismiss();
     if (context.mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _dismiss(context);
+      },
+      child: Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
       child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: TextButton(
-                  onPressed: () => _dismiss(context),
-                  child: const Text('❌ Close'),
+        color: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFFD700), Color(0xFFFF5500)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: const Column(
+                    children: [
+                      Text('🎤🔥', style: TextStyle(fontSize: 40)),
+                      SizedBox(height: 8),
+                      Text(
+                        'Loving the vibes?',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.star, size: 64, color: Colors.amber),
-              const SizedBox(height: 12),
-              const Text(
-                '⭐ Do you like our app? ⭐',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Your feedback means a lot to us! ❤️ If you enjoy using our app, '
-                'please leave ⭐⭐⭐⭐⭐ or a review! 📝',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => _rateNow(context),
-                  child: const Text('📝 Leave a Review'),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton(
+                    onPressed: () => _dismiss(context),
+                    icon: const Icon(Icons.close, color: Color(0xFF1A1A1A)),
+                    tooltip: 'Close',
+                  ),
                 ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Column(
+                children: [
+                  const Text(
+                    '⭐ ⭐ ⭐ ⭐ ⭐',
+                    style: TextStyle(fontSize: 28, letterSpacing: 4),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'If ${AppConfig.appTitle} is helping your flow, a quick '
+                    '5-star review on Google Play would mean the world to us! 🌍',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'It takes 10 seconds and helps us drop even more fire beats '
+                    'for you. Thank you! 🙏🎶',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 14,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => _rateNow(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF5500),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        '⭐ Rate 5 Stars on Google Play',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => _dismiss(context),
+                    child: const Text(
+                      'Maybe later 😊',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => _dismiss(context),
-                child: const Text('⏳ Maybe Later'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
       ),
     );
   }

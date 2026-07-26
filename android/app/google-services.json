@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "566534327286",
-    "project_id": "hip-hop-beat",
-    "storage_bucket": "hip-hop-beat.firebasestorage.app"
+    "project_number": "1061937181547",
+    "project_id": "afro-beat-trap-studio",
+    "storage_bucket": "afro-beat-trap-studio.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:566534327286:android:56336ccb5e3f2caa2f55d7",
+        "mobilesdk_app_id": "1:1061937181547:android:9f450d087f2ef719df522e",
         "android_client_info": {
           "package_name": "com.afrobeattrap.studio"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB1BPPY8mrgCSYEIGbISIHUdKIrEjSAwaw"
+          "current_key": "AIzaSyDCOYXTxJFuAv6JqGsw7yG3FygNLDhi67Y"
         }
       ],
       "services": {

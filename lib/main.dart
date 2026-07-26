@@ -12,6 +12,7 @@ import 'services/favorites_service.dart';
 import 'services/purchase_service.dart';
 import 'services/tab_navigation_service.dart';
 import 'services/rating_service.dart';
+import 'services/mix_playback_service.dart';
 import 'services/recording_session.dart';
 import 'services/saved_recordings_service.dart';
 
@@ -31,11 +32,19 @@ Future<void> main() async {
 
   final beatAudio = BeatAudioService();
   final adMob = AdMobService();
+  final mixPlayback = MixPlaybackService();
+  await mixPlayback.loadPreferences();
   final favorites = FavoritesService();
   await favorites.load();
 
   final savedRecordings = SavedRecordingsService();
   await savedRecordings.load();
+
+  mixPlayback.onPlaybackEnded = (id) {
+    if (id != null && savedRecordings.playingId == id) {
+      savedRecordings.setPlayingId(null);
+    }
+  };
 
   final analytics = AnalyticsService();
   await analytics.initialize();
@@ -57,11 +66,13 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: favorites),
         ChangeNotifierProvider.value(value: savedRecordings),
         ChangeNotifierProvider.value(value: beatAudio),
+        ChangeNotifierProvider.value(value: mixPlayback),
         ChangeNotifierProvider(
           create: (_) => RecordingSession(
             beatAudio: beatAudio,
             adMob: adMob,
             savedRecordings: savedRecordings,
+            mixPlayback: mixPlayback,
           ),
         ),
       ],

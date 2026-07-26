@@ -74,12 +74,25 @@ class AdMobService {
     if (_initialized) return;
 
     try {
-      await MobileAds.instance.initialize();
+      final status = await MobileAds.instance.initialize();
       _initialized = true;
-      debugPrint('AdMob initialized');
+      debugPrint('AdMob initialized (mediation adapters load on first ad request)');
+      if (kDebugMode) {
+        status.adapterStatuses.forEach((name, adapter) {
+          debugPrint('Mediation adapter $name: ${adapter.description}');
+        });
+      }
     } catch (e) {
       debugPrint('AdMob init error: $e');
     }
+  }
+
+  void _logMediationNetwork(Ad ad, String format) {
+    if (!kDebugMode) return;
+    final network = ad.responseInfo?.mediationAdapterClassName;
+    debugPrint(
+      '$format loaded${network != null ? ' via $network' : ''}',
+    );
   }
 
   Future<void> showBanner() async {
@@ -92,6 +105,7 @@ class AdMobService {
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
+        onAdLoaded: (ad) => _logMediationNetwork(ad, 'Banner'),
         onAdFailedToLoad: (ad, error) {
           debugPrint('Banner failed: $error');
           ad.dispose();
@@ -121,7 +135,10 @@ class AdMobService {
       adUnitId: _interstitialId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) => _interstitialAd = ad,
+        onAdLoaded: (ad) {
+          _interstitialAd = ad;
+          _logMediationNetwork(ad, 'Interstitial');
+        },
         onAdFailedToLoad: (error) {
           debugPrint('Interstitial load failed: $error');
           _interstitialAd = null;

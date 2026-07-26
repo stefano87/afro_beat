@@ -43,3 +43,11 @@ List<Beat> _generateAfroBeats() {
     );
   });
 }
+
+/// Finds the beat stream URL from a saved recording name (for older saves).
+String? resolveBeatUrlByName(String beatName) {
+  for (final beat in generateBeats()) {
+    if (beat.name == beatName) return beat.url;
+  }
+  return null;
+}

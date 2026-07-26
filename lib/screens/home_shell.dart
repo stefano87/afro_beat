@@ -138,7 +138,10 @@ class _HomeShellState extends State<HomeShell> {
               top: false,
               child: BottomNavigationBar(
                 currentIndex: nav.currentTab,
-                onTap: nav.setTab,
+                onTap: (index) {
+                  context.read<RecordingSession>().dismissPanelIfIdle();
+                  nav.setTab(index);
+                },
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 selectedItemColor: Colors.white,

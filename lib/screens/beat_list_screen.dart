@@ -16,6 +16,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/info_modal.dart';
+import '../widgets/playing_beat_card.dart';
 import '../widgets/recording_panel.dart';
 
 class BeatListScreen extends StatefulWidget {
@@ -184,6 +185,9 @@ class _BeatListScreenState extends State<BeatListScreen> {
                     beat: beat,
                     isPremium: isPremium,
                     isFavorite: favorites.isFavorite(beat),
+                    isPlaying: beat.isPlaying,
+                    isRecording: session.selectedBeat?.id == beat.id &&
+                        session.isAnyBeatRecording,
                     onPlay: () => _playBeat(beats, beat),
                     onFavorite: () => favorites.toggleFavorite(beat),
                     onRecord: () => _startRecording(beats, beat),
@@ -291,6 +295,8 @@ class _BeatListItem extends StatelessWidget {
   final Beat beat;
   final bool isPremium;
   final bool isFavorite;
+  final bool isPlaying;
+  final bool isRecording;
   final VoidCallback onPlay;
   final VoidCallback onFavorite;
   final VoidCallback onRecord;
@@ -300,6 +306,8 @@ class _BeatListItem extends StatelessWidget {
     required this.beat,
     this.isPremium = false,
     required this.isFavorite,
+    this.isPlaying = false,
+    this.isRecording = false,
     required this.onPlay,
     required this.onFavorite,
     required this.onRecord,
@@ -308,65 +316,72 @@ class _BeatListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.itemBg,
-        borderRadius: BorderRadius.circular(8),
-        border: isPremium
-            ? Border.all(color: AppColors.accentOrange.withValues(alpha: 0.5))
-            : null,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  if (isPremium) ...[
-                    const Icon(Icons.star,
-                        color: AppColors.accentOrange, size: 16),
-                    const SizedBox(width: 6),
-                  ],
-                  Expanded(
-                    child: Text(
-                      beat.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        letterSpacing: 0.3,
-                      ),
+    return PlayingBeatCard(
+      isPlaying: isPlaying && !isRecording,
+      isPremium: isPremium,
+      child: Row(
+        children: [
+          if (isPlaying && !isRecording) ...[
+            const PlayingBeatIndicator(),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Row(
+              children: [
+                if (isPremium) ...[
+                  const Icon(Icons.star,
+                      color: AppColors.accentOrange, size: 16),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: Text(
+                    beat.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isPlaying && !isRecording
+                          ? AppColors.accentGreen
+                          : Colors.white,
+                      letterSpacing: 0.3,
+                      shadows: isPlaying && !isRecording
+                          ? [
+                              Shadow(
+                                color: AppColors.accentGreen
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 8,
+                              ),
+                            ]
+                          : null,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            _IconBtn(
-              icon: beat.isPlaying ? Icons.pause : Icons.play_arrow,
-              onTap: onPlay,
-            ),
-            _IconBtn(
-              icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+          ),
+          _IconBtn(
+            icon: isPlaying ? Icons.pause : Icons.play_arrow,
+            onTap: onPlay,
+            highlight: isPlaying && !isRecording,
+          ),
+          _IconBtn(
+            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: AppColors.danger,
+            onTap: onFavorite,
+          ),
+          if (!isRecording)
+            _LabelBtn(
+              label: 'Sing & Record',
+              icon: Icons.radio,
+              color: AppColors.success,
+              onTap: onRecord,
+            )
+          else
+            _LabelBtn(
+              label: 'Stop',
+              icon: Icons.stop,
               color: AppColors.danger,
-              onTap: onFavorite,
+              onTap: onStop,
             ),
-            if (!beat.isRecording)
-              _LabelBtn(
-                label: 'Sing & Record',
-                icon: Icons.radio,
-                color: AppColors.success,
-                onTap: onRecord,
-              )
-            else
-              _LabelBtn(
-                label: 'Stop',
-                icon: Icons.stop,
-                color: AppColors.danger,
-                onTap: onStop,
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -375,23 +390,35 @@ class _BeatListItem extends StatelessWidget {
 class _IconBtn extends StatelessWidget {
   final IconData icon;
   final Color? color;
+  final bool highlight;
   final VoidCallback onTap;
 
-  const _IconBtn({required this.icon, required this.onTap, this.color});
+  const _IconBtn({
+    required this.icon,
+    required this.onTap,
+    this.color,
+    this.highlight = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(4),
       child: Material(
-        color: AppColors.buttonBg,
+        color: highlight
+            ? AppColors.accentGreen.withValues(alpha: 0.2)
+            : AppColors.buttonBg,
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(6),
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Icon(icon, color: color ?? Colors.white, size: 20),
+            child: Icon(
+              icon,
+              color: color ?? (highlight ? AppColors.accentGreen : Colors.white),
+              size: 20,
+            ),
           ),
         ),
       ),

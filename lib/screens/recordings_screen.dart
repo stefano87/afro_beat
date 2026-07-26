@@ -6,11 +6,15 @@ import '../services/analytics_service.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../services/beat_audio_service.dart';
+import '../services/mix_playback_service.dart';
 import '../services/saved_recordings_service.dart';
 import '../services/share_recording_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 import '../widgets/info_modal.dart';
+import '../widgets/mix_adjust_sheet.dart';
+import '../widgets/recording_list_card.dart';
+import '../widgets/save_mix_dialog.dart';
 
 class RecordingsScreen extends StatefulWidget {
   const RecordingsScreen({super.key});
@@ -29,33 +33,61 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
     });
   }
 
+  Future<void> _stopAll() async {
+    await context.read<MixPlaybackService>().stop();
+    await context.read<BeatAudioService>().stop();
+    context.read<SavedRecordingsService>().setPlayingId(null);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _play(SavedRecording recording) async {
     final library = context.read<SavedRecordingsService>();
+    final mix = context.read<MixPlaybackService>();
     final audio = context.read<BeatAudioService>();
 
     if (library.isPlaying(recording.id)) {
-      await audio.stop();
-      library.setPlayingId(null);
+      await _stopAll();
       return;
     }
 
-    final ok = await audio.playLocalFile(recording.filePath);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not play recording'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
-      return;
-    }
+    await _stopAll();
+    mix.setPreviewExtraBeat(false);
 
     library.setPlayingId(recording.id);
-    audio.playerStateStream.firstWhere(
-      (s) => s.processingState == ProcessingState.completed,
-    ).then((_) {
-      if (mounted) library.setPlayingId(null);
+    if (mounted) setState(() {});
+
+    final ok = await audio.playLocalFile(recording.filePath);
+    if (!ok) {
+      library.setPlayingId(null);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not play recording'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+      return;
+    }
+
+    audio.playerStateStream
+        .firstWhere((s) => s.processingState == ProcessingState.completed)
+        .then((_) {
+      if (!mounted) return;
+      if (library.playingId == recording.id) {
+        library.setPlayingId(null);
+        setState(() {});
+      }
     });
+  }
+
+  Future<void> _openAdjustMix(SavedRecording recording) async {
+    await showMixAdjustSheet(
+      context,
+      recording: recording,
+      onSaveMix: () => showSaveMixDialog(context, recording: recording),
+    );
   }
 
   Future<void> _confirmDelete(SavedRecording recording) async {
@@ -83,10 +115,10 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
 
     if (ok != true || !mounted) return;
 
-    final library = context.read<SavedRecordingsService>();
-    final audio = context.read<BeatAudioService>();
-    if (library.isPlaying(recording.id)) await audio.stop();
-    await library.delete(recording.id);
+    if (context.read<SavedRecordingsService>().isPlaying(recording.id)) {
+      await _stopAll();
+    }
+    await context.read<SavedRecordingsService>().delete(recording.id);
   }
 
   Future<void> _rename(SavedRecording recording) async {
@@ -170,11 +202,11 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppHeader(
         title: 'My Recordings',
-        subtitle: 'Saved on your phone',
+        subtitle: 'Tap Adjust to mix voice & beat',
         onInfoTap: () => InfoModal.show(context),
       ),
-      body: Consumer<SavedRecordingsService>(
-        builder: (context, library, _) {
+      body: Consumer2<SavedRecordingsService, BeatAudioService>(
+        builder: (context, library, audio, _) {
           if (library.recordings.isEmpty) {
             return const Center(
               child: Padding(
@@ -207,70 +239,20 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             itemCount: library.recordings.length,
             itemBuilder: (context, index) {
               final r = library.recordings[index];
               final playing = library.isPlaying(r.id);
-              final d = r.createdAt;
-              final date =
-                  '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
-                  '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.itemBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  title: Text(
-                    r.displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    r.displayName != r.beatName
-                        ? '${r.beatName}  ·  $date  ·  ${r.durationLabel.isNotEmpty ? r.durationLabel : '—'}'
-                        : '$date  ·  ${r.durationLabel.isNotEmpty ? r.durationLabel : '—'}',
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.share_outlined,
-                            color: AppColors.accentOrange),
-                        tooltip: 'Share',
-                        onPressed: () => _share(r),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined,
-                            color: Colors.white70),
-                        onPressed: () => _rename(r),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          playing ? Icons.stop_circle : Icons.play_circle_fill,
-                          color: AppColors.accentGreen,
-                          size: 32,
-                        ),
-                        onPressed: () => _play(r),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            color: AppColors.danger),
-                        onPressed: () => _confirmDelete(r),
-                      ),
-                    ],
-                  ),
-                ),
+              return RecordingListCard(
+                recording: r,
+                playing: playing,
+                onPlay: () => _play(r),
+                onAdjust: () => _openAdjustMix(r),
+                onShare: () => _share(r),
+                onRename: () => _rename(r),
+                onDelete: () => _confirmDelete(r),
               );
             },
           );

@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/beat.dart';
+import '../models/saved_recording.dart';
 import '../services/rating_service.dart';
 import '../services/recording_session.dart';
 import '../services/tab_navigation_service.dart';
 import '../theme/app_theme.dart';
 import 'info_modal.dart';
+import 'mix_adjust_sheet.dart';
+import 'mix_controls.dart';
+import 'save_mix_dialog.dart';
 
 class RecordingPanel extends StatelessWidget {
   final Beat beat;
@@ -23,6 +27,7 @@ class RecordingPanel extends StatelessWidget {
     return Consumer<RecordingSession>(
       builder: (context, session, _) {
         final isRecording = session.isAnyBeatRecording;
+        final isPreviewPlaying = session.isPreviewPlaying;
         final canClose = !isRecording &&
             !session.isPreparing &&
             !session.isStopping &&
@@ -121,6 +126,11 @@ class RecordingPanel extends StatelessWidget {
                   ],
                 ),
               ),
+              if (!session.isPreparing && !session.isStopping)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(24, 12, 24, 0),
+                  child: MonitorBeatSlider(),
+                ),
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -138,27 +148,19 @@ class RecordingPanel extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.music_note_outlined,
-                        color: AppColors.accentGreen),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        beat.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  beat.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               if (session.recordedDuration.isNotEmpty) ...[
@@ -299,12 +301,56 @@ class RecordingPanel extends StatelessWidget {
                 ),
               if (session.hasRecording &&
                   !session.isStopping &&
-                  !session.playRecordedAudio)
+                  session.selectedBeat != null)
                 _ActionButton(
-                  label: 'PLAY RECORDING',
-                  icon: Icons.play_arrow_outlined,
+                  label: 'ADJUST MIX',
+                  icon: Icons.tune,
                   color: AppColors.purple,
+                  onTap: () {
+                    final path = session.isRecordingDownloaded &&
+                            session.savedFilePath != null
+                        ? session.savedFilePath!
+                        : session.recordingFilePath;
+                    if (path == null) return;
+
+                    final recording = SavedRecording(
+                      id: session.savedRecordingId ?? session.previewPlaybackId,
+                      filePath: path,
+                      beatName: beat.name,
+                      beatUrl: beat.url,
+                      title: session.recordingTitle,
+                      durationLabel: session.recordedDuration,
+                      createdAt: DateTime.now(),
+                    );
+
+                    showMixAdjustSheet(
+                      context,
+                      recording: recording,
+                      onSaveMix: session.isRecordingDownloaded &&
+                              session.savedRecordingId != null
+                          ? () => showSaveMixDialog(context, recording: recording)
+                          : null,
+                    );
+                  },
+                ),
+              if (session.hasRecording && !session.isStopping)
+                _ActionButton(
+                  label: isPreviewPlaying ? 'STOP PLAYBACK' : 'PREVIEW RECORDING',
+                  icon: isPreviewPlaying
+                      ? Icons.stop_outlined
+                      : Icons.play_arrow_outlined,
+                  color: isPreviewPlaying ? AppColors.danger : AppColors.purple,
                   onTap: () async {
+                    if (isPreviewPlaying) {
+                      await session.stopPlayRecording();
+                      if (context.mounted) {
+                        await RatingPopup.showIfNeeded(
+                          context,
+                          trigger: RatingPromptTrigger.recordingPlayback,
+                        );
+                      }
+                      return;
+                    }
                     final ok = await session.playRecording();
                     if (!ok && context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -314,21 +360,6 @@ class RecordingPanel extends StatelessWidget {
                           ),
                           backgroundColor: Colors.red,
                         ),
-                      );
-                    }
-                  },
-                ),
-              if (session.hasRecording && session.playRecordedAudio)
-                _ActionButton(
-                  label: 'STOP PLAYBACK',
-                  icon: Icons.stop_outlined,
-                  color: AppColors.danger,
-                  onTap: () async {
-                    await session.stopPlayRecording();
-                    if (context.mounted) {
-                      await RatingPopup.showIfNeeded(
-                        context,
-                        trigger: RatingPromptTrigger.recordingPlayback,
                       );
                     }
                   },

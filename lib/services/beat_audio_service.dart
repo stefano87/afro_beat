@@ -105,9 +105,28 @@ class BeatAudioService extends ChangeNotifier {
   }
 
   Future<void> stop() async {
-    await _player.stop();
+    try {
+      if (_player.playing) {
+        await _player.pause();
+      }
+      await _player.stop();
+    } catch (e) {
+      debugPrint('BeatAudioService.stop error: $e');
+    }
     _clearPlayingState();
     notifyListeners();
+  }
+
+  /// Hard stop after recording — ensures speaker output is silenced on Android.
+  Future<void> stopAfterRecording() async {
+    await stop();
+    if (kIsWeb) return;
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(false);
+    } catch (e) {
+      debugPrint('BeatAudioService.stopAfterRecording session error: $e');
+    }
   }
 
   /// Play a local audio file (recording playback).

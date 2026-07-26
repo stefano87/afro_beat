@@ -12,16 +12,17 @@ import '../models/beat.dart';
 import 'admob_service.dart';
 import 'beat_audio_service.dart';
 import 'saved_recordings_service.dart';
+import 'mix_playback_service.dart';
 
 class RecordingSession extends ChangeNotifier {
   static const maxRecordingTime = 240;
-  static const _recordingBeatVolume = 0.55;
 
   final AudioRecorder _recorder = AudioRecorder();
 
   final BeatAudioService beatAudio;
   final AdMobService adMob;
   final SavedRecordingsService savedRecordings;
+  final MixPlaybackService mixPlayback;
 
   Beat? selectedBeat;
   bool showCountdown = false;
@@ -68,7 +69,38 @@ class RecordingSession extends ChangeNotifier {
     required this.beatAudio,
     required this.adMob,
     required this.savedRecordings,
-  });
+    required this.mixPlayback,
+  }) {
+    mixPlayback.addListener(_syncPreviewPlaybackState);
+    final previousEnded = mixPlayback.onPlaybackEnded;
+    mixPlayback.onPlaybackEnded = (id) {
+      previousEnded?.call(id);
+      _syncPreviewPlaybackState();
+    };
+  }
+
+  static const panelPreviewId = 'panel_preview';
+
+  String get previewPlaybackId => savedRecordingId ?? panelPreviewId;
+
+  bool get isPreviewPlaying =>
+      playRecordedAudio ||
+      (mixPlayback.isPlaying &&
+          mixPlayback.activeRecordingId == previewPlaybackId);
+
+  void _syncPreviewPlaybackState() {
+    final mixActive = mixPlayback.isPlaying &&
+        mixPlayback.activeRecordingId == previewPlaybackId;
+    if (mixActive && !playRecordedAudio) {
+      playRecordedAudio = true;
+      notifyListeners();
+    } else if (!mixActive && playRecordedAudio) {
+      playRecordedAudio = false;
+      notifyListeners();
+    }
+  }
+
+  double get monitorBeatVolume => mixPlayback.monitorBeatVolume;
 
   int get remainingTime => maxRecordingTime - recordingTime;
   bool get isAnyBeatRecording => _isRecordingActive;
@@ -167,7 +199,7 @@ class RecordingSession extends ChangeNotifier {
 
         final beatStarted = await beatAudio.playBeatForRecording(
           beat,
-          volume: _recordingBeatVolume,
+          volume: mixPlayback.monitorBeatVolume,
         );
         if (!beatStarted) {
           debugPrint('Beat playback did not start — recording voice only');
@@ -220,11 +252,17 @@ class RecordingSession extends ChangeNotifier {
     _recordingTimer?.cancel();
     _countdownTimer?.cancel();
     recordedDuration = formatTime(recordingTime);
+
+    final activeBeat = beat ?? selectedBeat;
+    if (activeBeat != null) {
+      selectedBeat = activeBeat.copyWith(isRecording: false);
+    }
     notifyListeners();
 
     try {
-      await beatAudio.stop();
+      await beatAudio.stopAfterRecording();
       await beatAudio.resetVolume();
+      await mixPlayback.stop();
 
       if (await _recorder.isRecording()) {
         final path = await _recorder.stop();
@@ -255,13 +293,8 @@ class RecordingSession extends ChangeNotifier {
         recordingFailed = true;
       }
 
-      final activeBeat = beat ?? selectedBeat;
-      if (activeBeat != null) {
-        selectedBeat = activeBeat.copyWith(isRecording: false);
-      }
-
       if (hasRecording && recordingFilePath != null) {
-        await _persistToLibrary(activeBeat?.name ?? 'Beat');
+        await _persistToLibrary(activeBeat);
       }
     } catch (e) {
       debugPrint('Stop recording error: $e');
@@ -276,14 +309,17 @@ class RecordingSession extends ChangeNotifier {
     }
   }
 
-  Future<void> _persistToLibrary(String beatName) async {
+  Future<void> _persistToLibrary(Beat? beat) async {
     if (recordingFilePath == null) return;
     if (isRecordingDownloaded && savedFilePath != null) return;
 
     final entry = await savedRecordings.add(
       sourcePath: recordingFilePath!,
-      beatName: beatName,
+      beatName: beat?.name ?? 'Beat',
+      beatUrl: beat?.url,
       durationLabel: recordedDuration,
+      mixBeatVolume: mixPlayback.beatVolume,
+      mixVoiceVolume: mixPlayback.voiceVolume,
     );
     if (entry != null) {
       savedFilePath = entry.filePath;
@@ -308,7 +344,7 @@ class RecordingSession extends ChangeNotifier {
 
   /// Re-save if auto-save failed (manual retry from panel).
   Future<void> saveRecording() async {
-    await _persistToLibrary(selectedBeat?.name ?? 'Beat');
+    await _persistToLibrary(selectedBeat);
     if (!isRecordingDownloaded) {
       throw Exception('Recording file not found');
     }
@@ -332,13 +368,46 @@ class RecordingSession extends ChangeNotifier {
       return false;
     }
 
+    final beat = selectedBeat;
+
+    if (beat != null && mixPlayback.previewExtraBeat) {
+      try {
+        await _configureSessionForPlayback();
+        final ok = await mixPlayback.play(
+          recordingId: previewPlaybackId,
+          voicePath: path,
+          beatUrl: beat.url,
+          voiceVolume: mixPlayback.voiceVolume,
+          includeSeparateBeat: true,
+        );
+        if (ok) {
+          playRecordedAudio = true;
+          notifyListeners();
+          return true;
+        }
+        playRecordedAudio = false;
+        notifyListeners();
+        return false;
+      } catch (e) {
+        debugPrint('playRecording mix error: $e');
+        playRecordedAudio = false;
+        notifyListeners();
+      }
+    }
+
     final size = await file.length();
     debugPrint('playRecording: ${size ~/ 1024} KB at $path');
 
     try {
       await _configureSessionForPlayback();
+      playRecordedAudio = true;
+      notifyListeners();
       final ok = await beatAudio.playLocalFile(path);
-      if (!ok) return false;
+      if (!ok) {
+        playRecordedAudio = false;
+        notifyListeners();
+        return false;
+      }
 
       _playerSub?.cancel();
       _playerSub = beatAudio.playerStateStream.listen((state) {
@@ -348,8 +417,6 @@ class RecordingSession extends ChangeNotifier {
         }
       });
 
-      playRecordedAudio = true;
-      notifyListeners();
       return true;
     } catch (e) {
       debugPrint('playRecording error: $e');
@@ -360,13 +427,33 @@ class RecordingSession extends ChangeNotifier {
   }
 
   Future<void> stopPlayRecording() async {
+    await mixPlayback.stop();
     await beatAudio.stop();
     playRecordedAudio = false;
     notifyListeners();
   }
 
+  /// Closes the recording panel when the user leaves the beat tab.
+  void dismissPanelIfIdle() {
+    if (_isRecordingActive ||
+        showCountdown ||
+        isPreparing ||
+        isStopping) {
+      return;
+    }
+    if (selectedBeat == null) return;
+
+    unawaited(stopPlayRecording());
+    selectedBeat = null;
+    _resetRecordingOutput();
+    savedRecordingId = null;
+    recordingTime = 0;
+    notifyListeners();
+  }
+
   void closeSelectedBeat() {
-    if (_isRecordingActive || isPreparing) return;
+    if (_isRecordingActive || isPreparing || isStopping) return;
+    unawaited(stopPlayRecording());
     selectedBeat = null;
     _resetRecordingOutput();
     recordingTime = 0;
@@ -375,6 +462,7 @@ class RecordingSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    mixPlayback.removeListener(_syncPreviewPlaybackState);
     _countdownTimer?.cancel();
     _recordingTimer?.cancel();
     _playerSub?.cancel();

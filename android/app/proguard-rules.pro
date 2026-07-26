@@ -10,6 +10,12 @@
 # Google Mobile Ads
 -keep class com.google.android.gms.ads.** { *; }
 
+# AdMob Meta (Facebook Audience Network) mediation adapter
+-keep class com.google.ads.mediation.facebook.** { *; }
+-keep class com.facebook.ads.** { *; }
+-dontwarn com.facebook.ads.**
+-dontwarn okio.**
+
 # Firebase
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**

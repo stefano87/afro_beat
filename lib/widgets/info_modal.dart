@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_config.dart';
-import '../screens/community_screen.dart';
 import '../services/rating_service.dart';
 
 class InfoModal extends StatelessWidget {
@@ -72,19 +71,6 @@ class InfoModal extends StatelessWidget {
                   'the best possible experience.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey, height: 1.6),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const CommunityScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.groups_outlined),
-                  label: const Text('Community - Submit Your Song'),
                 ),
               ],
             ),

@@ -52,6 +52,9 @@ class SavedRecordingsService extends ChangeNotifier {
     required String beatName,
     required String durationLabel,
     String? title,
+    String? beatUrl,
+    double mixBeatVolume = 0.65,
+    double mixVoiceVolume = 1.0,
   }) async {
     final source = File(sourcePath);
     if (!await source.exists()) return null;
@@ -67,9 +70,12 @@ class SavedRecordingsService extends ChangeNotifier {
       id: id,
       filePath: destPath,
       beatName: beatName,
+      beatUrl: beatUrl,
       title: title?.trim().isNotEmpty == true ? title!.trim() : beatName,
       durationLabel: durationLabel,
       createdAt: DateTime.now(),
+      mixBeatVolume: mixBeatVolume,
+      mixVoiceVolume: mixVoiceVolume,
     );
 
     _recordings.insert(0, entry);
@@ -98,6 +104,92 @@ class SavedRecordingsService extends ChangeNotifier {
   void setPlayingId(String? id) {
     _playingId = id;
     notifyListeners();
+  }
+
+  Future<void> updateMixLevels({
+    required String id,
+    required double mixBeatVolume,
+    required double mixVoiceVolume,
+  }) async {
+    final index = _recordings.indexWhere((r) => r.id == id);
+    if (index < 0) return;
+
+    _recordings[index] = _recordings[index].copyWith(
+      mixBeatVolume: mixBeatVolume.clamp(0.0, 1.0),
+      mixVoiceVolume: mixVoiceVolume.clamp(0.0, 1.0),
+    );
+    await _persistIndex();
+    notifyListeners();
+  }
+
+  Future<bool> overwriteWithMix({
+    required String id,
+    required String mixedFilePath,
+    required double mixBeatVolume,
+    required double mixVoiceVolume,
+    String? title,
+  }) async {
+    final index = _recordings.indexWhere((r) => r.id == id);
+    if (index < 0) return false;
+
+    final old = _recordings[index];
+    if (old.filePath != mixedFilePath) {
+      try {
+        final previous = File(old.filePath);
+        if (await previous.exists()) await previous.delete();
+      } catch (e) {
+        debugPrint('overwriteWithMix delete old file: $e');
+      }
+    }
+
+    final trimmedTitle = title?.trim();
+    _recordings[index] = old.copyWith(
+      filePath: mixedFilePath,
+      title: trimmedTitle != null && trimmedTitle.isNotEmpty
+          ? trimmedTitle
+          : old.title,
+      mixBeatVolume: mixBeatVolume.clamp(0.0, 1.0),
+      mixVoiceVolume: mixVoiceVolume.clamp(0.0, 1.0),
+    );
+    await _persistIndex();
+    notifyListeners();
+    return true;
+  }
+
+  Future<SavedRecording?> addMixedCopy({
+    required SavedRecording source,
+    required String mixedFilePath,
+    required double mixBeatVolume,
+    required double mixVoiceVolume,
+    String? title,
+  }) async {
+    final mixed = File(mixedFilePath);
+    if (!await mixed.exists()) return null;
+
+    final docs = await getApplicationDocumentsDirectory();
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final destPath = '${docs.path}/recording_$id.wav';
+    await mixed.copy(destPath);
+
+    final trimmedTitle = title?.trim();
+    final entry = SavedRecording(
+      id: id,
+      filePath: destPath,
+      beatName: source.beatName,
+      beatUrl: source.beatUrl,
+      title: trimmedTitle != null && trimmedTitle.isNotEmpty
+          ? trimmedTitle
+          : '${source.displayName} (mix)',
+      durationLabel: source.durationLabel,
+      createdAt: DateTime.now(),
+      mixBeatVolume: mixBeatVolume.clamp(0.0, 1.0),
+      mixVoiceVolume: mixVoiceVolume.clamp(0.0, 1.0),
+    );
+
+    _recordings.insert(0, entry);
+    await _persistIndex();
+    notifyListeners();
+    return entry;
   }
 
   Future<bool> rename(String id, String title) async {

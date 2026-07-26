@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_header.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/info_modal.dart';
+import '../widgets/playing_beat_card.dart';
 import '../widgets/recording_panel.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -117,59 +118,70 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
                     final isPlaying = audio.isBeatPlaying(beat);
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.itemBg,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    beat.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const Text(
-                                    AppConfig.favoritesSubtitle,
-                                    style: TextStyle(color: AppColors.textSecondary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            _IconBtn(
-                              icon: isPlaying ? Icons.pause : Icons.play_arrow,
-                              onTap: () => _playBeat(beat),
-                            ),
-                            if (!isRecording)
-                              _LabelBtn(
-                                label: 'Record',
-                                icon: Icons.radio,
-                                color: AppColors.success,
-                                onTap: () => session.startRecording(beat),
-                              )
-                            else
-                              _LabelBtn(
-                                label: 'Stop',
-                                icon: Icons.stop,
-                                color: AppColors.danger,
-                                onTap: () => session.stopRecording(beat),
-                              ),
-                            _IconBtn(
-                              icon: Icons.heart_broken,
-                              color: AppColors.danger,
-                              onTap: () => favorites.toggleFavorite(beat),
-                            ),
+                    return PlayingBeatCard(
+                      isPlaying: isPlaying && !isRecording,
+                      child: Row(
+                        children: [
+                          if (isPlaying && !isRecording) ...[
+                            const PlayingBeatIndicator(),
+                            const SizedBox(width: 10),
                           ],
-                        ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  beat.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: isPlaying && !isRecording
+                                        ? AppColors.accentGreen
+                                        : Colors.white,
+                                    shadows: isPlaying && !isRecording
+                                        ? [
+                                            Shadow(
+                                              color: AppColors.accentGreen
+                                                  .withValues(alpha: 0.35),
+                                              blurRadius: 8,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                ),
+                                const Text(
+                                  AppConfig.favoritesSubtitle,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _IconBtn(
+                            icon: isPlaying ? Icons.pause : Icons.play_arrow,
+                            onTap: () => _playBeat(beat),
+                            highlight: isPlaying && !isRecording,
+                          ),
+                          if (!isRecording)
+                            _LabelBtn(
+                              label: 'Record',
+                              icon: Icons.radio,
+                              color: AppColors.success,
+                              onTap: () => session.startRecording(beat),
+                            )
+                          else
+                            _LabelBtn(
+                              label: 'Stop',
+                              icon: Icons.stop,
+                              color: AppColors.danger,
+                              onTap: () => session.stopRecording(beat),
+                            ),
+                          _IconBtn(
+                            icon: Icons.heart_broken,
+                            color: AppColors.danger,
+                            onTap: () => favorites.toggleFavorite(beat),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -203,23 +215,35 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 class _IconBtn extends StatelessWidget {
   final IconData icon;
   final Color? color;
+  final bool highlight;
   final VoidCallback onTap;
 
-  const _IconBtn({required this.icon, required this.onTap, this.color});
+  const _IconBtn({
+    required this.icon,
+    required this.onTap,
+    this.color,
+    this.highlight = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(4),
       child: Material(
-        color: AppColors.buttonBg,
+        color: highlight
+            ? AppColors.accentGreen.withValues(alpha: 0.2)
+            : AppColors.buttonBg,
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(6),
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Icon(icon, color: color ?? Colors.white, size: 20),
+            child: Icon(
+              icon,
+              color: color ?? (highlight ? AppColors.accentGreen : Colors.white),
+              size: 20,
+            ),
           ),
         ),
       ),
